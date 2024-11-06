@@ -19,47 +19,69 @@ class Day6 < Base
     end
   end
 
-  def one
-    lights = Array.new(1000) { Array.new(1000) { false } }
+  def merge(sets, a, b, state)
+    if sets.length > 0 && sets.last[2] == state
+      sets.last[1] = b
+    else
+      sets << [a, b, state]
+    end
+  end
+
+  def toggle_lights
+    lights = Array.new(1000) { [[0, 999, 0]] }
     @input.each do |action, x1, y1, x2, y2|
       (x1..x2).to_a.each do |x|
-        (y1..y2).to_a.each do |y|
-          case action
-          when "on"
-            lights[x][y] = true
-          when "off"
-            lights[x][y] = false
-          else
-            lights[x][y] = !lights[x][y]
+        new_sets = []
+        lights[x].each do |a, b, state|
+          if b < y1 || a > y2
+            merge(new_sets, a, b, state)
+            next
           end
+
+          merge(new_sets, a, y1 - 1, state) if a < y1
+
+          left = [a, y1].max
+          right = [b, y2].min
+          new_state = yield(action, state)
+          merge(new_sets, left, right, new_state)
+
+          merge(new_sets, y2 + 1, b, state) if b > y2
         end
+
+        lights[x] = new_sets
       end
     end
 
     lights.sum do |line|
-      line.count { |x| x }
+      line.sum do |a, b, state|
+        state * (b - a + 1)
+      end
+    end
+  end
+
+  def one
+    toggle_lights do |action, state|
+      case action
+      when "on"
+        1
+      when "off"
+        0
+      else
+        1 - state
+      end
     end
   end
 
   def two
-    lights = Array.new(1000) { Array.new(1000) { 0 } }
-    @input.each do |action, x1, y1, x2, y2|
-      (x1..x2).to_a.each do |x|
-        (y1..y2).to_a.each do |y|
-          case action
-          when "on"
-            lights[x][y] += 1
-          when "off"
-            lights[x][y] -= 1 if lights[x][y] > 0
-          else
-            lights[x][y] += 2
-          end
-        end
+    toggle_lights do |action, state|
+      case action
+      when "on"
+        state + 1
+      when "off"
+        [0, state - 1].max
+      else
+        state + 2
       end
-    end
-
-    lights.sum do |line|
-      line.sum
     end
   end
 end
